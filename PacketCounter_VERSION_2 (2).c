@@ -6,8 +6,6 @@
 #include<math.h>
 #include<string.h>
 #include<pthread.h>
-#include<dos.h>
-#include<windows.h>
 
 #define IP_SIZE 32
 #define IP_PARTS_SIZE 8
@@ -134,7 +132,7 @@ void *display_statistics(void *vargp)
 
     while(1)
     {
-        Sleep(display_time_out*1000);
+        sleep(display_time_out);
         for(i=0; i<size; i++)
         {
             //lock of ranges for a particular subnet
@@ -188,17 +186,17 @@ void *clean_up(void *vargp)
     while(1)
     {
         printf("\ninside cleanup lower=%d, upper=%d",lower,upper);
-        Sleep(1000);
+         sleep(1);
         //looping in a range of subnets dependin gupon the thraed
         for(i=lower; i<upper; i++)
         {
             printf("\ninside clean up loop for %d",i);
-            Sleep(1000);
+            sleep(1);
             //lock with range getting from upper parameter of this thread
             if(pthread_mutex_trylock(&lock[i%NO_OF_LOCKS])==0)
             {
-                printf("\nlock acquired in cleanup");
-                Sleep(1000);
+                printf("\nlock acquired in cleanup with index = %d",subnet[i]);
+                sleep(1);
                 int next_index=subnet[i];
                 //getting current time in ms
                 unsigned long current_time;
@@ -207,7 +205,7 @@ void *clean_up(void *vargp)
                 {
                     current_time=(unsigned long)time(NULL);
                     printf("\n--%lu--",current_time);
-                    Sleep(1000);
+                    sleep(1);
                     //exzpiry cehck
                     if(current_time - buffer[next_index].last_updated_timestamp >= EXPIRY_TIME)
                     {
@@ -249,7 +247,7 @@ void *clean_up(void *vargp)
                             {
                                 *current_index=(*current_index)+1;
                                 free_buffer[*current_index]=next_index;
-                                printf("\nfree current index = %d   current index = %d\n",free_buffer[*current_index],current_index);
+                                printf("\nfree current index = %d   current index = %d\n",free_buffer[*current_index],*current_index);
                                 if((*current_index)==BUFFER_SIZE)
                                 {
                                     printf("\nBUFFER EMPTY after %lu sec",(unsigned long)time(NULL)-start_time);
@@ -394,12 +392,13 @@ int main()
     pthread_create(&display_thread,NULL,display_statistics,(void*)display_param1);
     //display thread creation done
     /*getting the paramethers for clean up threads ready*/
-    struct cleanup_thread_parameters **param=(struct cleanup_thread_parameters**)malloc(sizeof(struct cleanup_thread_parameters)*NO_OF_THREADS);
+    struct cleanup_thread_parameters *param[NO_OF_THREADS],param1[NO_OF_THREADS];
     int lower=0;
     int upper=size/(NO_OF_THREADS);
     int remains=size%NO_OF_THREADS;
     for(i=0;i<NO_OF_THREADS;i++)
     {
+	param[i]=&param1[i];
         param[i]->lower=lower;
         param[i]->upper=upper;
         param[i]->subnet=subnet_link;
@@ -614,7 +613,7 @@ int main()
         }	*/
         if(j%iteration_size==0)
         {
-            Sleep(sleep_per_iteration*1000);
+            sleep(sleep_per_iteration);
             printf("\n%d came",j);
         }
         j++;
@@ -630,8 +629,6 @@ int main()
     free(subnet_link);
     free(free_buffer);
     free(buffer);
-    for(i=0;i<NO_OF_THREADS;i++)
-        free(param[i]);
 
     return 0;
 }
