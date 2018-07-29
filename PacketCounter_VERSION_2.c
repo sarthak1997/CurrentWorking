@@ -6,7 +6,7 @@
 #include<math.h>
 #include<string.h>
 #include<pthread.h>
-#include<windows.h>
+//#include<windows.h>
 
 
 #define IP_SIZE 32
@@ -143,8 +143,9 @@ void *display_statistics(void *vargp)
 
     while(1)
     {
-        Sleep(display_time_out*1000);
-        for(i=0; i<size; i++)
+       // Sleep(display_time_out*1000);
+        sleep(display_time_out);
+	    for(i=0; i<size; i++)
         {
             //lock of ranges for a particular subnet
             if(pthread_mutex_trylock(&lock[i/(size/2)])==0)
@@ -224,13 +225,13 @@ void *clean_up(void *vargp)
                         //cleanup at subnet cinnected node
                         if(subnet[i]==next_index)
                         {
+                            if(pthread_mutex_trylock(&lock[NO_OF_LOCKS])==0)
+                            {
                             printf("\n*** going to delete %d.%d.%d.%d with %lu at %lu\n",buffer[next_index].ip[0],buffer[next_index].ip[1],buffer[next_index].ip[2],buffer[next_index].ip[3],buffer[next_index].last_updated_timestamp,current_time);
                             subnet[i] = buffer[next_index].next_host_index;
                             buffer[next_index].next_host_index=NIL;
                             buffer[next_index].next_host_index=NIL;
                             //lock for free1 buffer
-                            if(pthread_mutex_trylock(&lock[NO_OF_LOCKS])==0)
-                            {
                                 printf("\nlock acq");
                                 (*current_index)=(*current_index)+1;
                                 free_buffer[*current_index]=next_index;
@@ -253,12 +254,12 @@ void *clean_up(void *vargp)
                         //clean up in middle or last node in a subnet
                         else
                         {
+                            if(pthread_mutex_trylock(&lock[NO_OF_LOCKS])==0)
+			    {
                             printf("\n*** going to delete %d.%d.%d.%d with %lu at %lu\n",buffer[next_index].ip[0],buffer[next_index].ip[1],buffer[next_index].ip[2],buffer[next_index].ip[3],buffer[next_index].last_updated_timestamp,current_time);
                             buffer[temp].next_host_index=buffer[next_index].next_host_index;
                             buffer[next_index].next_host_index=NIL;
                             //lock for free1 buffer
-                            if(pthread_mutex_trylock(&lock[NO_OF_LOCKS])==0)
-                            {
                                 printf("\nlock acq");
                                 *current_index=(*current_index)+1;
                                 free_buffer[*current_index]=next_index;
@@ -299,7 +300,8 @@ void *clean_up(void *vargp)
             printf("\n clean up ends after %lu sec",(unsigned long)time(NULL)-start_time);
             pthread_exit(NULL);
         }
-        Sleep(2000);
+        sleep(2);
+	//Sleep(2000);
     }
 }
 void inputGenerator(int n)
@@ -537,8 +539,9 @@ void *insert(void *vargp)
 
         if(j%iteration_size==0)
         {
-            Sleep(sleep_per_iteration*1000);
-            printf("\n%d came",j);
+           // Sleep(sleep_per_iteration*1000);
+           sleep(sleep_per_iteration);
+	       	printf("\n%d came",j);
         }
         j++;
     }
