@@ -185,18 +185,18 @@ void *clean_up(void *vargp)
     int i;
     while(1)
     {
-        printf("\ninside cleanup lower=%d, upper=%d",lower,upper);
-         sleep(1);
+        //printf("\ninside cleanup lower=%d, upper=%d",lower,upper);
+         //sleep(1);
         //looping in a range of subnets dependin gupon the thraed
         for(i=lower; i<upper; i++)
         {
-            printf("\ninside clean up loop for %d",i);
-            sleep(1);
+           // printf("\ninside clean up loop for %d",i);
+            //sleep(1);
             //lock with range getting from upper parameter of this thread
             if(pthread_mutex_trylock(&lock[i%NO_OF_LOCKS])==0)
             {
-                printf("\nlock acquired in cleanup with index = %d",subnet[i]);
-                sleep(1);
+                //printf("\nlock acquired in cleanup with index = %d",subnet[i]);
+                //sleep(1);
                 int next_index=subnet[i];
                 //getting current time in ms
                 unsigned long current_time;
@@ -204,8 +204,8 @@ void *clean_up(void *vargp)
                 while(next_index!=NIL)
                 {
                     current_time=(unsigned long)time(NULL);
-                    printf("\n--%lu--",current_time);
-                    sleep(1);
+                    //printf("\n--%lu--",current_time);
+                    //sleep(1);
                     //exzpiry cehck
                     if(current_time - buffer[next_index].last_updated_timestamp >= EXPIRY_TIME)
                     {
@@ -214,6 +214,7 @@ void *clean_up(void *vargp)
                         {
                             printf("\n*** going to delete %d.%d.%d.%d with %lu at %lu\n",buffer[next_index].ip[0],buffer[next_index].ip[1],buffer[next_index].ip[2],buffer[next_index].ip[3],buffer[next_index].last_updated_timestamp,current_time);
                             subnet[i] = buffer[next_index].next_host_index;
+                            buffer[next_index].next_host_index=NIL;
                             buffer[next_index].next_host_index=NIL;
                             //lock for free buffer
                             if(pthread_mutex_trylock(&lock_free)==0)
@@ -382,39 +383,9 @@ int main()
     start_time=recent_time;
     //initializing the threads i.e cleanup and display
     pthread_t clean_thread[NO_OF_THREADS],display_thread;
-    /*getting the parameters ready for display thread*/
-    struct display_thread_parameters *display_param1;
-    struct display_thread_parameters temp;
-    display_param1=&temp;
-    display_param1->subnet_link=subnet_link;
-    display_param1->buffer=buffer;
-    display_param1->subnet_size=size;
-    pthread_create(&display_thread,NULL,display_statistics,(void*)display_param1);
-    //display thread creation done
-    /*getting the paramethers for clean up threads ready*/
-    struct cleanup_thread_parameters *param[NO_OF_THREADS],param1[NO_OF_THREADS];
-    int lower=0;
-    int upper=size/(NO_OF_THREADS);
-    int remains=size%NO_OF_THREADS;
-    for(i=0;i<NO_OF_THREADS;i++)
-    {
-	param[i]=&param1[i];
-        param[i]->lower=lower;
-        param[i]->upper=upper;
-        param[i]->subnet=subnet_link;
-        param[i]->buffer=buffer;
-        param[i]->free_buffer=free_buffer;
-        param[i]->current_index=&current_index;
-        param[i]->subnet_size=size;
-        pthread_create(&clean_thread[i],NULL,clean_up,(void*)param[i]);
-        lower=upper;
-        if(i!=NO_OF_THREADS-2)
-            upper+=upper;
-        else
-            upper+=(upper+remains);
-    }
-    //cleanup thread creation done
-    int j=1;
+
+
+    int j=1,flag1=1,flag2=1;
     //main insertion thread
     while(j<=iteration)
     {
@@ -611,6 +582,46 @@ int main()
         param2->subnet_size=size;
         pthread_create(&clean_thread[1],NULL,clean_up,(void*)param2);
         }	*/
+        if(flag1 && current_time-start_time >= display_time_out)
+        {
+            flag1=0;
+            /*getting the parameters ready for display thread*/
+            struct display_thread_parameters *display_param1;
+            struct display_thread_parameters temp;
+            display_param1=&temp;
+            display_param1->subnet_link=subnet_link;
+            display_param1->buffer=buffer;
+            display_param1->subnet_size=size;
+            pthread_create(&display_thread,NULL,display_statistics,(void*)display_param1);
+            //display thread creation done
+        }
+        if(flag2 && current_time-start_time >= EXPIRY_TIME)
+        {
+            flag2=0;
+            /*getting the paramethers for clean up threads ready*/
+            struct cleanup_thread_parameters *param[NO_OF_THREADS],param1[NO_OF_THREADS];
+            int lower=0;
+            int upper=size/(NO_OF_THREADS);
+            int remains=size%NO_OF_THREADS;
+            for(i=0;i<NO_OF_THREADS;i++)
+            {
+                param[i]=&param1[i];
+                param[i]->lower=lower;
+                param[i]->upper=upper;
+                param[i]->subnet=subnet_link;
+                param[i]->buffer=buffer;
+                param[i]->free_buffer=free_buffer;
+                param[i]->current_index=&current_index;
+                param[i]->subnet_size=size;
+                pthread_create(&clean_thread[i],NULL,clean_up,(void*)param[i]);
+                lower=upper;
+                if(i!=NO_OF_THREADS-2)
+                    upper+=upper;
+                else
+                    upper+=(upper+remains);
+            }
+            //cleanup thread creation done
+        }
         if(j%iteration_size==0)
         {
             sleep(sleep_per_iteration);
