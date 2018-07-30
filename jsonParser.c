@@ -6,7 +6,7 @@
 int subnet_size;
 int BUFFER_SIZE;
 int EXPIRY_TIME;
-int diplay_time_out;
+int display_time_out;
 int output_type;
 
 struct pair
@@ -14,6 +14,20 @@ struct pair
 	char key[max_size];
 	char value[max_size];
 };
+
+int convert_value_to_int(char *ch)
+{
+	int i=0;
+	while(ch[i]!='\0')
+		i++;
+	int val=0,place=1,len=i;
+	for(i=len-1;i>=0;i--)
+	{
+		val+=place*(ch[i]-48);
+		place*=10;
+	}
+	return val;
+}
 
 void readConfig(struct pair *p)
 {
@@ -25,7 +39,7 @@ void readConfig(struct pair *p)
 		return;
 	}
 	char ch;
-	int i,j=0,flag=-1,flag1=1;
+	int i,j=0,flag=-1,flag1=0;
 	while((ch=fgetc(fp))!=EOF)
 	{
 		//		printf("%c",ch);
@@ -43,6 +57,12 @@ void readConfig(struct pair *p)
 			else if(ch=='}')
 			{
 				flag=1;
+				break;
+			}
+			else if(ch==':')
+			{
+			//	printf("\n here");
+				flag1=1;
 			}
 			else
 			{
@@ -55,15 +75,12 @@ void readConfig(struct pair *p)
 						while((ch=fgetc(fp))!='"')
 						{
 							p[j].key[i]=ch;
-							printf("%c",p[j].key[i]);
+					//		printf("k=%c",p[j].key[i]);
 							i++;
 						}
-						printf("\n");
+					//	ch=fgetc(fp);
+					//	printf("ch=%c",ch);
 					}
-				}
-				else if(ch==':')
-				{
-					flag1=1;
 				}
 				else if(flag1)
 				{
@@ -73,10 +90,11 @@ void readConfig(struct pair *p)
 						while((ch=fgetc(fp))!='"')
 						{
 							p[j].value[i]=ch;
-							printf("%c",p[j].value[i]);						
+			//				printf("v=%c",p[j].value[i]);						
 							i++;
 						}
-						printf("\n");			
+					//	ch=fgetc(fp);
+					//	printf("ch=%c",ch);			
 						flag1=0;
 						j++;
 					}
@@ -84,26 +102,38 @@ void readConfig(struct pair *p)
 			}
 		}
 	}
-	int m=0;
-	while(m<j)
+	int m,val;
+	for(m=0;m<j;m++)
 	{
 		i=0;
-		if(p[m].key[i]=='\0')
-			printf("\n nULL");
-		while(p[m].key[i]!='\0')
+		val=convert_value_to_int(p[m].value);
+		if(strcmp(p[m].key,"SubnetMask")==0)
 		{
-			printf("%c",p[m].key[i]);
-			i++;	
+			subnet_size=val;
 		}
-		m++;
+		else if(strcmp(p[m].key,"BufferPoolSize")==0)
+		{
+			BUFFER_SIZE=val;	
+		}
+		else if(strcmp(p[m].key,"CleanTimeout")==0)
+		{
+			EXPIRY_TIME=val;
+		}
+		else if(strcmp(p[m].key,"PrintTimeout")==0)
+		{
+			display_time_out=val;
+		}
+		else
+		{
+			output_type=val;
+		}
 	}
-
-
 }
 
 int main()
 {
 	struct pair p[max_size];
 	readConfig(p);
+	printf("\n%d--%d--%d--%d--%d",subnet_size,BUFFER_SIZE,EXPIRY_TIME,display_time_out,output_type);
 	return 0;
 }

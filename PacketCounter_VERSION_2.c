@@ -16,7 +16,7 @@
 #define NO_OF_THREADS 2
 #define NO_OF_LOCKS 2
 #define NO_OF_PACKETS 1
-
+#define max_size 250
 
 int ipMask[IP_PARTS];
 pthread_mutex_t lock[NO_OF_LOCKS+1];
@@ -31,6 +31,8 @@ int iteration=1;
 int sleep_per_iteration=0;
 int iteration_size;
 int subnet_size;
+int output_type;
+int k;//testcase number
 
 struct ip_host
 {
@@ -65,6 +67,126 @@ struct insert_thread_parameters
 	int test_no;
 	int size;
 };
+struct pair
+{
+	char key[max_size];
+	char value[max_size];
+};
+
+int convert_value_to_int(char *ch)
+{
+	int i=0;
+	while(ch[i]!='\0')
+		i++;
+	int val=0,place=1,len=i;
+	for(i=len-1;i>=0;i--)
+	{
+		val+=place*(ch[i]-48);
+		place*=10;
+	}
+	return val;
+}
+void readConfig(struct pair *p)
+{
+	FILE *fp;
+	printf("\ninside");
+	fp=fopen("config.js","r");
+	if(fp==NULL)
+	{
+		printf("\n file can not be opened");
+		return;
+	}
+	char ch;
+	int i,j=0,flag=-1,flag1=0;
+	while((ch=fgetc(fp))!=EOF)
+	{
+		//		printf("%c",ch);
+		if(ch==' ' || ch=='\n')
+			continue;
+		//can add comments handling logic here in extended version
+		else if(flag && ch=='{')
+		{
+			flag=0;
+		}
+		else if(!flag)
+		{
+			if(ch==',')
+				continue;
+			else if(ch=='}')
+			{
+				flag=1;
+				break;
+			}
+			else if(ch==':')
+			{
+			//	printf("\n here");
+				flag1=1;
+			}
+			else
+			{
+
+				if(!flag1)
+				{
+					if(ch=='"')
+					{
+						i=0;
+						while((ch=fgetc(fp))!='"')
+						{
+							p[j].key[i]=ch;
+					//		printf("k=%c",p[j].key[i]);
+							i++;
+						}
+					//	ch=fgetc(fp);
+					//	printf("ch=%c",ch);
+					}
+				}
+				else if(flag1)
+				{
+					if(ch=='"')
+					{
+						i=0;
+						while((ch=fgetc(fp))!='"')
+						{
+							p[j].value[i]=ch;
+			//				printf("v=%c",p[j].value[i]);						
+							i++;
+						}
+					//	ch=fgetc(fp);
+					//	printf("ch=%c",ch);			
+						flag1=0;
+						j++;
+					}
+				}
+			}
+		}
+	}
+	fclose(fp);
+	int m,val;
+	for(m=0;m<j;m++)
+	{
+		val=convert_value_to_int(p[m].value);
+		if(strcmp(p[m].key,"SubnetMask")==0)
+		{
+			subnet_size=val;
+		}
+		else if(strcmp(p[m].key,"BufferPoolSize")==0)
+		{
+			BUFFER_SIZE=val;	
+		}
+		else if(strcmp(p[m].key,"CleanTimeout")==0)
+		{
+			EXPIRY_TIME=val;
+		}
+		else if(strcmp(p[m].key,"PrintTimeout")==0)
+		{
+			display_time_out=val;
+		}
+		else
+		{
+			output_type=val;
+		}
+	}
+}
 void generateRandomIP()
 {
 	int i;
@@ -170,6 +292,8 @@ void *display_statistics(void *vargp)
 		sprintf(fname,"ip_dump_%lu.csv",(unsigned long)time(NULL));
 		fp=fopen(fname,"a");
 		fprintf(fp,"IP,COUNT,LAST_UPDATED_TIMESTAMP\n");
+		if(k!=0)
+		{
 		if((unsigned long)time(NULL)-start_time >=15 && (unsigned long)time(NULL)-start_time <25)
 		{
 			printf("\n15 sec completed\n");
@@ -179,6 +303,7 @@ void *display_statistics(void *vargp)
 		{
 			printf("\n25 sec completed\n");
 			pthread_exit(NULL);
+		}
 		}
 	}
 }
@@ -294,12 +419,15 @@ void *clean_up(void *vargp)
 			/*else
 			  Sleep(0.5);*/
 		}
+		if(k!=0)
+		{
 		if((unsigned long)time(NULL)-start_time > ((iteration/iteration_size)*(sleep_per_iteration)+EXPIRY_TIME))
 		{
 			printf("\n clean up ends after %lu sec",(unsigned long)time(NULL)-start_time);
 			pthread_exit(NULL);
 		}
-		sleep(2);
+		}
+		//sleep(2);
 		//Sleep(2000);
 	}
 }
@@ -568,7 +696,6 @@ void *insert(void *vargp)
 int main()
 {
 	//test case input
-	int k;
 	printf("\nenter the test case no.  - ");
 	scanf("%d",&k);
 	//taking the input of subnet bits and buffer size
@@ -617,16 +744,19 @@ int main()
 		sleep_per_iteration=5;
 		iteration_size=10000;
 	}
-	else if(k==6)
+	/*else if(k==6)
 	{
 		sleep_per_iteration=20;
 		display_time_out=60;
 		EXPIRY_TIME=30;
 		iteration=15000;
-	}
+	}*/
 	else
 	{
-		printf("\nEnter number of subnet mask - ");
+		struct pair p[max_size];
+		readConfig(p);
+		//printf("\n%d=%d=%d=%d",subnet_size,BUFFER_SIZE,EXPIRY_TIME,display_time_out);
+		/*printf("\nEnter number of subnet mask - ");
 		scanf("%d",&subnet_size);
 		if(subnet_size>=32 || subnet_size<=0)
 		{
@@ -638,8 +768,11 @@ int main()
 		printf("\nEnter clean time out - ");
 		scanf("%d",&EXPIRY_TIME);
 		printf("\nEnter display time out - ");
-		scanf("%d",&display_time_out);
+		scanf("%d",&display_time_out);*/
 	}
+	// getting the size of our primary data structure
+	int size=(1<<subnet_size);
+	printf("\n%d--",size);
 	//inputs taken
 	//initializing the buffer
 	struct ip_host *buffer=(struct ip_host*)malloc(sizeof(struct ip_host)*BUFFER_SIZE);
@@ -664,8 +797,6 @@ int main()
 		return 0;
 	}
 	// locks initializig done
-	// getting the size of our primary data structure
-	int size=(1<<subnet_size);
 	//allocating memory to array of subnet links
 	int *subnet_link = (int*)malloc(sizeof(int*)*size);
 	if(subnet_link==NULL)
